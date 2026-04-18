@@ -1,0 +1,1165 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Map as MapIcon, Wallet, History, ShieldAlert, Search, Nfc, Star, 
+  BusFront, AlertTriangle, Clock, User, CreditCard, CheckCircle2, 
+  MapPin, Crosshair, Accessibility, Contrast, TrainFront, ZoomIn,
+  X, Route, DollarSign, Ear, Eye, Landmark, Lock, Cloud,
+  ArrowLeft, Car, AlertCircle, Volume2, Menu, LogOut, Navigation, UserCircle, Printer
+} from 'lucide-react';
+
+// --- ÍCONE PERSONALIZADO DE LIBRAS (DUAS MÃOS) ---
+const LibrasIcon = ({ size = 24, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="currentColor" className={className}>
+    <path d="M57.6,35.4c-1.4-3.5-5.2-5.3-8.8-4.2c-1.2,0.4-2.2,1-3.1,1.9c-0.6-3.8-4-6.5-7.9-6.3c-2.4,0.1-4.6,1.4-5.8,3.4 c-0.6-2.7-2.9-4.8-5.7-4.9c-2.2-0.1-4.2,1-5.3,2.8v-7.6c0-3.3-2.7-6-6-6s-6,2.7-6,6V52c0,11,9,20,20,20h15.2c6.9,0,12.8-4.9,14.1-11.7 l3.4-17.2C62.6,40.1,60.7,36.9,57.6,35.4z M52.5,59.5c-0.8,4-4.3,6.9-8.3,6.9H29.1c-7.7,0-14-6.3-14-14V20.5c0-1.7,1.3-3,3-3 s3,1.3,3,3v21h3v-12c0-1.7,1.3-3,3-3s3,1.3,3,3v12h3V28.5c0-1.7,1.3-3,3-3s3,1.3,3,3v14.4l1.3-1.3c1.7-1.7,4.3-2,6.3-0.6 c1.6,1.1,2.4,3.1,1.9,5L52.5,59.5z"/>
+    <path d="M84.4,26.4c-1.4-3.5-5.2-5.3-8.8-4.2c-1.2,0.4-2.2,1-3.1,1.9c-0.6-3.8-4-6.5-7.9-6.3c-2.4,0.1-4.6,1.4-5.8,3.4 c-0.6-2.7-2.9-4.8-5.7-4.9c-2.2-0.1-4.2,1-5.3,2.8v10.9l6-6v-4.7c0-1.7,1.3-3,3-3s3,1.3,3,3v12h3V28.5c0-1.7,1.3-3,3-3s3,1.3,3,3v14.4 l1.3-1.3c1.7-1.7,4.3-2,6.3-0.6c1.6,1.1,2.4,3.1,1.9,5l-3.4,17.2c0.3-0.5,0.6-1.1,0.9-1.7l8.2-17.2C89.4,40.1,87.5,36.9,84.4,26.4z"/>
+  </svg>
+);
+
+// --- COORDENADAS REAIS DE VIAS (FÍSICA DO MAPA FOCADA NO DF) ---
+const routes = {
+  w3: [[-15.836, -47.930], [-15.820, -47.915], [-15.796, -47.892], [-15.760, -47.880], [-15.731, -47.890]],
+  eixao: [[-15.840, -47.910], [-15.820, -47.898], [-15.794, -47.882], [-15.760, -47.876], [-15.735, -47.882]],
+  eixo_monumental: [[-15.784, -47.913], [-15.788, -47.894], [-15.794, -47.882], [-15.799, -47.865]],
+  eptg_epia: [[-15.833, -48.056], [-15.835, -48.020], [-15.815, -47.965], [-15.805, -47.940], [-15.794, -47.882]],
+  estrutural: [[-15.760, -48.275], [-15.790, -48.150], [-15.785, -47.950], [-15.794, -47.882]],
+  brt_sul: [[-16.016, -48.062], [-15.980, -48.010], [-15.900, -47.960], [-15.850, -47.940], [-15.794, -47.882]],
+  sobradinho_norte: [[-15.650, -47.780], [-15.735, -47.882], [-15.794, -47.882]],
+  paranoa_lago: [[-15.765, -47.775], [-15.815, -47.830], [-15.794, -47.882]]
+};
+
+const mockAddresses = [
+  "Rodoviária do Plano Piloto, Centro",
+  "Esplanada dos Ministérios, Zona Cívico-Administrativa",
+  "Taguatinga Shopping, QS 1 Rua 210",
+  "Universidade de Brasília (UnB), Asa Norte",
+  "ParkShopping, SMAS Trecho 1",
+  "Terminal Asa Sul (TAS), Setor Policial",
+  "Aeroporto Internacional de Brasília",
+  "Hospital de Base do DF, SMHS",
+  "Praça do Relógio, Taguatinga Centro",
+  "Terminal de Ceilândia, QNP",
+  "JK Shopping, Águas Claras"
+];
+
+const heatmapData = [
+  { lat: -15.7942, lng: -47.8825, level: 5, color: '#8b0000', label: 'Rodoviária PP - Furtos e Lotação' },
+  { lat: -15.815, lng: -47.965, level: 4, color: '#d32f2f', label: 'EPTG - Acidentes Constantes' },
+  { lat: -15.833, lng: -48.056, level: 3, color: '#f57c00', label: 'Taguatinga Centro - Atrasos' },
+  { lat: -15.790, lng: -48.150, level: 2, color: '#fbc02d', label: 'Ceilândia - Falhas Mecânicas' },
+  { lat: -15.835, lng: -48.020, level: 1, color: '#388e3c', label: 'Águas Claras - Lentidão Pontual' }
+];
+
+const generateMassiveFleet = () => {
+  const fleet = [];
+  const addLine = (id, type, company, lineName, color, routeKey, dest, price, ac, acc) => {
+    const route = routes[routeKey] || routes.eixao;
+    const currentWP = Math.floor(Math.random() * (route.length - 1));
+    const forward = Math.random() > 0.5;
+    const speed = 0.0012 + (Math.random() * 0.0015);
+    fleet.push({
+      id, type, company, line: lineName, color, dest, accessible: acc, ac, price,
+      route, currentWP, forward, speed,
+      stops: ["Terminal de Origem", "Parada Principal", "Integração", dest],
+      schedules: ["05:30", "06:15", "07:00", "07:45", "08:30"]
+    });
+  };
+
+  addLine('B1', 'BRT', 'BRT Expresso', '2202 - Expresso Gama', '#ffca28', 'brt_sul', 'Rodoviária PP', 5.50, true, true);
+  addLine('B2', 'BRT', 'BRT Expresso', '2301 - Parador Sta Maria', '#ffca28', 'brt_sul', 'Terminal Sta Maria', 5.50, true, true);
+
+  const dfLines = [
+    { line: '105.2 - W3 Sul / Norte', route: 'w3', price: 5.50 },
+    { line: '136.1 - Águas Claras / RPP', route: 'eptg_epia', price: 5.50 },
+    { line: '0.114 - L2 Norte / Sul', route: 'eixao', price: 3.80 },
+    { line: '108.8 - Rodoviária / Três Poderes', route: 'eixo_monumental', price: 3.80 },
+    { line: '0.380 - P. Sul / RPP', route: 'eptg_epia', price: 5.50 },
+    { line: '0.501 - Sobradinho / RPP', route: 'sobradinho_norte', price: 5.50 },
+    { line: '0.313 - Setor O / RPP', route: 'estrutural', price: 5.50 }
+  ];
+
+  dfLines.forEach((l, i) => addLine(`DF${i}`, 'ONIBUS', 'Semob DF', l.line, '#1351b4', l.route, 'Terminal DF', l.price, true, true));
+
+  const clones = [...fleet];
+  clones.forEach((v, i) => {
+    addLine(`${v.id}_C1`, v.type, v.company, v.line, v.color, Object.keys(routes)[Math.floor(Math.random()*Object.keys(routes).length)], v.dest, v.price, v.ac, v.accessible);
+    addLine(`${v.id}_C2`, v.type, v.company, v.line, v.color, Object.keys(routes)[Math.floor(Math.random()*Object.keys(routes).length)], v.dest, v.price, v.ac, v.accessible);
+  });
+
+  return fleet;
+};
+
+const apiMockRealTimeData = generateMassiveFleet();
+
+const mockTrips = [
+  { id: 'TRIP-901', line: '105.2 - W3 Sul / Norte', date: '17 Abr 2026', time: '06:15', driver: 'Roberto Almeida', plate: 'JJK-1234', cost: 5.50, reviewed: false },
+  { id: 'TRIP-892', line: 'Metrô - Linha Verde', date: '16 Abr 2026', time: '18:30', driver: 'Automático', plate: 'TREM 14', cost: 5.50, reviewed: true },
+  { id: 'TRIP-885', line: '0.380 - P. Sul / RPP', date: '15 Abr 2026', time: '14:20', driver: 'Sílvio Santos', plate: 'REC-5678', cost: 5.50, reviewed: true }
+];
+
+// ==========================================
+// APLICATIVO PRINCIPAL (RAIZ DA ACESSIBILIDADE E LAYOUT)
+// ==========================================
+export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
+  
+  // Estado Global do Aplicativo
+  const [activeTab, setActiveTab] = useState('map');
+  const [balance, setBalance] = useState(45.50);
+  const [trips, setTrips] = useState(mockTrips);
+
+  // Estado Global de Acessibilidade
+  const [a11y, setA11y] = useState({ 
+    highContrast: false, 
+    textSizeLevel: 0, 
+    menuOpen: false,
+    screenReader: false,
+    vlibras: false
+  });
+  
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const showToast = (message) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  // --- ACESSIBILIDADE FUNCIONAL: LEITOR DE TELA ---
+  useEffect(() => {
+    const handleRead = (e) => {
+      if (!a11y.screenReader) return;
+      let textToRead = e.target.innerText || e.target.getAttribute('aria-label') || e.target.alt || e.target.value;
+      if (!textToRead && e.target.parentElement) {
+        textToRead = e.target.parentElement.innerText || e.target.parentElement.getAttribute('aria-label');
+      }
+
+      if (textToRead && textToRead.trim().length > 0) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(textToRead.trim());
+        utterance.lang = 'pt-BR';
+        utterance.rate = 1.1; 
+        window.speechSynthesis.speak(utterance);
+      }
+    };
+
+    if (a11y.screenReader) {
+      document.addEventListener('click', handleRead, true);
+    }
+    return () => {
+      document.removeEventListener('click', handleRead, true);
+      window.speechSynthesis.cancel();
+    };
+  }, [a11y.screenReader]);
+
+  // --- ACESSIBILIDADE FUNCIONAL: VLIBRAS ---
+  useEffect(() => {
+    if (!document.getElementById('vlibras-script')) {
+      const container = document.createElement('div');
+      container.id = 'vlibras-container';
+      container.setAttribute('vw', '');
+      container.className = 'enabled';
+      container.style.display = 'none'; // Oculto por padrão
+      container.innerHTML = `
+        <div vw-access-button class="active"></div>
+        <div vw-plugin-wrapper>
+          <div class="vw-plugin-top-wrapper"></div>
+        </div>
+      `;
+      document.body.appendChild(container);
+
+      const script = document.createElement('script');
+      script.id = 'vlibras-script';
+      script.src = 'https://vlibras.gov.br/app/vlibras-plugin.js';
+      script.onload = () => {
+        if(window.VLibras) {
+          new window.VLibras.Widget('https://vlibras.gov.br/app');
+        }
+      };
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  // TOGGLE VISIBILIDADE DO VLIBRAS
+  useEffect(() => {
+    const accessBtn = document.querySelector('[vw-access-button]');
+    const pluginWrapper = document.querySelector('[vw-plugin-wrapper]');
+    
+    if (accessBtn && pluginWrapper) {
+      if (a11y.vlibras) {
+        accessBtn.style.display = 'block';
+      } else {
+        accessBtn.style.display = 'none';
+        pluginWrapper.style.display = 'none'; // Oculta o avatar se estiver aberto
+      }
+    }
+  }, [a11y.vlibras]);
+
+  const lvl = a11y.textSizeLevel;
+  const tBase = ['text-sm', 'text-base', 'text-lg', 'text-xl'][lvl];
+  const tSmall = ['text-xs', 'text-sm', 'text-base', 'text-lg'][lvl];
+  const tMicro = ['text-[10px]', 'text-xs', 'text-sm', 'text-base'][lvl];
+  const tTitle = ['text-lg', 'text-xl', 'text-2xl', 'text-3xl'][lvl];
+  
+  // ALTO CONTRASTE REGRAS (Fundo Preto, Letras e Bordas Amarelas)
+  const baseBg = a11y.highContrast ? 'bg-black' : 'bg-[#F8F9FA]';
+  const textColor = a11y.highContrast ? 'text-yellow-400' : 'text-[#333333]';
+  const cardBg = a11y.highContrast ? 'bg-black border-y-2 border-yellow-400' : 'bg-white border-gray-200';
+
+  return (
+    <>
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #printable-report, #printable-report * { visibility: visible; }
+          #printable-report { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; background: white; color: black; }
+        }
+      `}</style>
+
+      <div className={`min-h-screen ${baseBg} ${textColor} font-sans pb-20 flex flex-col h-screen overflow-hidden transition-all duration-300`}>
+        
+        {/* Gov.br Top Bar */}
+        <div className={`${a11y.highContrast ? 'bg-black border-b-2 border-yellow-400 text-yellow-400' : 'bg-[#1351b4] text-white'} shrink-0 shadow-md relative z-30`}>
+          {!a11y.highContrast && (
+            <div className="h-1 w-full flex">
+              <div className="bg-[#009b3a] w-1/2"></div>
+              <div className="bg-[#fedf00] w-1/2"></div>
+            </div>
+          )}
+          <div className="px-4 py-2 flex items-center justify-between font-bold">
+            <div className="flex items-center gap-3">
+              {isAuthenticated && (
+                <button onClick={() => setSidebarOpen(true)} aria-label="Abrir Menu do Usuário" className={`p-1 rounded ${a11y.highContrast ? 'hover:bg-yellow-400/20' : 'hover:bg-white/20'}`}>
+                  <Menu size={20 + (lvl*2)} />
+                </button>
+              )}
+              <div className={`tracking-wider ${tMicro}`}>gov.br | Mobilidade Cidadã - DF</div>
+            </div>
+            <button 
+              aria-label="Abrir opções de acessibilidade"
+              onClick={() => setA11y(prev => ({...prev, menuOpen: !prev.menuOpen}))}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-colors ${tMicro} ${a11y.highContrast ? 'border-2 border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black' : 'bg-white/20 hover:bg-white/30'}`}
+            >
+              <Accessibility size={14 + (lvl*2)} /> Acessibilidade
+            </button>
+          </div>
+        </div>
+
+        {/* MENU LATERAL SANDUÍCHE (LOGIN/USUÁRIO) */}
+        {sidebarOpen && isAuthenticated && (
+          <div className="fixed inset-0 z-[1000] flex animate-fade-in">
+            <div className="absolute inset-0 bg-black/60" onClick={() => setSidebarOpen(false)}></div>
+            <div className={`relative w-4/5 max-w-sm h-full shadow-2xl flex flex-col transform transition-transform ${a11y.highContrast ? 'bg-black border-r-2 border-yellow-400 text-yellow-400' : 'bg-white text-gray-800'}`}>
+              <div className={`p-6 flex flex-col justify-end min-h-[140px] ${a11y.highContrast ? 'bg-black border-b-2 border-yellow-400' : 'bg-[#1351b4] text-white'}`}>
+                <h2 className={`font-bold ${tTitle}`}>gov.br</h2>
+                <p className={`opacity-80 mt-1 ${tSmall}`}>Identidade Digital Única</p>
+              </div>
+              <div className={`p-6 border-b ${a11y.highContrast ? 'border-yellow-400' : 'border-gray-200'}`}>
+                <p className={`opacity-70 ${tSmall}`}>Sessão iniciada como</p>
+                <p className={`font-bold mt-1 ${tTitle}`}>João da Silva</p>
+                <p className={`opacity-70 mt-1 ${tSmall}`}>CPF: ***.123.456-**</p>
+                <div className="mt-3 inline-block px-3 py-1 bg-green-100 text-green-800 text-xs font-bold rounded-full">Conta Prata Verificada</div>
+              </div>
+              <div className="p-4 space-y-2 flex-1">
+                <button className={`w-full text-left px-4 py-4 rounded-lg font-bold flex items-center gap-3 transition-colors ${a11y.highContrast ? 'bg-black border-2 border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black' : 'bg-white hover:bg-gray-100'}`}>
+                  <UserCircle size={22 + (lvl*2)} /> <span className={tBase}>Alternar Usuário</span>
+                </button>
+                <button onClick={() => { setIsAuthenticated(false); setSidebarOpen(false); }} className={`w-full text-left px-4 py-4 rounded-lg font-bold flex items-center gap-3 transition-colors ${a11y.highContrast ? 'bg-black border-2 border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black' : 'bg-white hover:bg-red-50 text-red-600'}`}>
+                  <LogOut size={22 + (lvl*2)} /> <span className={tBase}>Sair da Conta</span>
+                </button>
+              </div>
+              <div className={`p-4 text-center opacity-60 ${tMicro}`}>
+                Versão 1.0.9 (Semob-DF)
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MENU DE ACESSIBILIDADE COMPLETO (Fundo Preto e Amarelo no Alto Contraste) */}
+        {a11y.menuOpen && (
+          <div className={`p-4 z-50 shrink-0 shadow-lg animate-fade-in ${a11y.highContrast ? 'bg-black border-b-2 border-yellow-400 text-yellow-400' : 'bg-white border-b border-gray-200 text-gray-800'}`} role="region" aria-label="Painel de Acessibilidade">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className={`font-bold flex items-center gap-2 ${tBase}`}>
+                <Accessibility size={18 + (lvl*2)} /> Configurações Inclusivas
+              </h2>
+              <button onClick={() => setA11y(prev => ({...prev, menuOpen: false}))} className={`p-1 rounded-full ${a11y.highContrast ? 'hover:bg-yellow-400/20 text-yellow-400' : 'hover:bg-gray-100 text-gray-600'}`} aria-label="Fechar menu de acessibilidade">
+                <X size={20 + (lvl*2)} />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              {/* Botões A+ e A- */}
+              <div className={`col-span-2 flex items-center justify-between p-2 rounded-lg border-2 ${a11y.highContrast ? 'bg-black border-yellow-400 text-yellow-400' : 'border-gray-300 bg-gray-50'}`}>
+                <button onClick={() => setA11y(prev => ({...prev, textSizeLevel: Math.max(prev.textSizeLevel - 1, 0)}))} disabled={lvl === 0} className={`px-4 py-2 font-bold text-lg disabled:opacity-30 active:scale-95 transition-transform ${a11y.highContrast ? 'text-yellow-400' : 'text-gray-800'}`} aria-label="Diminuir tamanho da tela">A-</button>
+                <div className="flex flex-col items-center">
+                  <span className={`font-bold uppercase ${tSmall}`}>Tamanho da Tela</span>
+                  <span className={`font-black ${tBase}`}>Nível {lvl + 1} de 4</span>
+                </div>
+                <button onClick={() => setA11y(prev => ({...prev, textSizeLevel: Math.min(prev.textSizeLevel + 1, 3)}))} disabled={lvl === 3} className={`px-4 py-2 font-bold text-xl disabled:opacity-30 active:scale-95 transition-transform ${a11y.highContrast ? 'text-yellow-400' : 'text-gray-800'}`} aria-label="Aumentar tamanho da tela">A+</button>
+              </div>
+              
+              {/* Botão de Contraste */}
+              <button 
+                onClick={() => setA11y(prev => ({...prev, highContrast: !prev.highContrast}))} 
+                className={`p-3 rounded-lg border-2 flex items-center justify-center gap-2 transition-colors ${
+                  a11y.highContrast ? 'bg-black text-yellow-400 border-yellow-400 hover:bg-yellow-400 hover:text-black' : 'bg-white border-gray-300 text-gray-800 hover:bg-gray-50'
+                }`}
+              >
+                <Contrast size={20 + (lvl*2)} /> <span className={`font-bold ${tSmall}`}>Contraste</span>
+              </button>
+              
+              {/* Leitor de Tela */}
+              <button 
+                onClick={() => {
+                  setA11y(prev => ({...prev, screenReader: !prev.screenReader}));
+                  showToast(!a11y.screenReader ? "Leitor de Tela ativado. Clique nos textos para ouvir." : "Leitor de Tela desativado.");
+                }} 
+                className={`p-3 rounded-lg border-2 flex items-center justify-center gap-2 transition-colors ${
+                  a11y.highContrast 
+                    ? (a11y.screenReader ? 'bg-yellow-400 text-black border-yellow-400' : 'bg-black text-yellow-400 border-yellow-400 hover:bg-yellow-400 hover:text-black')
+                    : (a11y.screenReader ? 'bg-blue-50 text-[#1351b4] border-[#1351b4]' : 'bg-white text-gray-800 border-gray-300 hover:bg-gray-50')
+                }`}
+              >
+                <Volume2 size={20 + (lvl*2)} /> <span className={`font-bold ${tSmall}`}>Leitor de Tela</span>
+              </button>
+            </div>
+            
+            <p className={`text-center font-bold opacity-80 ${tMicro} ${a11y.highContrast ? 'text-yellow-400' : 'text-gray-600'}`}>
+              * O Intérprete VLibras está disponível na lateral direita da sua tela.
+            </p>
+          </div>
+        )}
+
+        {/* ROTEAMENTO DE TELAS */}
+        {!isAuthenticated ? (
+          <GovBrLogin onLogin={() => setIsAuthenticated(true)} a11y={a11y} />
+        ) : (
+          <MainApp 
+            onLogout={() => setIsAuthenticated(false)} 
+            a11y={a11y} 
+            balance={balance} setBalance={setBalance}
+            trips={trips} setTrips={setTrips}
+            activeTab={activeTab} setActiveTab={setActiveTab}
+            showToast={showToast}
+          />
+        )}
+
+        {toastMessage && (
+          <div role="alert" aria-live="assertive" className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-[#333333] text-white px-5 py-3 rounded-full shadow-lg z-[9999] flex items-center gap-3 animate-fade-in w-11/12 max-w-sm border-2 border-green-500">
+            <CheckCircle2 size={24} className="text-[#009b3a] shrink-0" />
+            <span className={`font-bold ${tBase}`}>{toastMessage}</span>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ==========================================
+// TELA DE LOGIN GOV.BR
+// ==========================================
+function GovBrLogin({ onLogin, a11y }) {
+  const [step, setStep] = useState(1);
+  const [cpf, setCpf] = useState('123.456.789-00');
+  const [senha, setSenha] = useState('senha123');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const lvl = a11y.textSizeLevel;
+  const tBase = ['text-sm', 'text-base', 'text-lg', 'text-xl'][lvl];
+  const tSmall = ['text-xs', 'text-sm', 'text-base', 'text-lg'][lvl];
+  const tTitle = ['text-lg', 'text-xl', 'text-2xl', 'text-3xl'][lvl];
+
+  return (
+    <main className="flex-1 flex justify-center mt-6 px-4 pb-10 overflow-y-auto">
+      <div className="w-full max-w-md">
+        {/* Cabeçalho Falso de Acessibilidade GovBR */}
+        <div className={`flex justify-end gap-4 mb-4 ${a11y.highContrast ? 'text-yellow-400' : 'text-[#1351b4]'}`}>
+          <Contrast size={20 + (lvl*2)} />
+          <Ear size={20 + (lvl*2)} />
+        </div>
+
+        {step === 1 ? (
+          <div className={`p-8 rounded-lg border-2 shadow-sm ${a11y.highContrast ? 'bg-black border-yellow-400 text-yellow-400' : 'bg-white border-gray-200 text-gray-800'}`}>
+            <h2 className={`font-bold mb-6 ${tTitle}`}>Identifique-se no gov.br com:</h2>
+            
+            <div className="flex items-center gap-3 mb-4">
+              <CreditCard className={a11y.highContrast ? "text-yellow-400" : "text-[#1351b4]"} size={24 + (lvl*2)} />
+              <span className={`font-bold ${tBase}`}>Número do CPF</span>
+            </div>
+            
+            <p className={`mb-6 ${tSmall} ${a11y.highContrast ? 'text-yellow-400' : 'text-gray-600'}`}>Digite seu CPF para <strong>criar</strong> ou <strong>acessar</strong> sua conta gov.br</p>
+            
+            <label className={`font-bold block mb-2 ${tBase}`}>CPF</label>
+            <input 
+              type="text" value={cpf} onChange={e => setCpf(e.target.value)} 
+              className={`w-full p-4 border-2 rounded-md mb-6 outline-none font-bold ${tBase} ${a11y.highContrast ? 'bg-black border-yellow-400 text-yellow-400 focus:ring-2 focus:ring-yellow-400' : 'bg-[#fff8d6] border-[#f2d01c] text-gray-800 focus:ring-2 focus:ring-yellow-400'}`} 
+              placeholder="Digite seu CPF"
+            />
+            
+            <button onClick={() => setStep(2)} className={`w-full font-bold py-4 rounded-full transition-colors mb-8 border-2 ${tBase} ${a11y.highContrast ? 'bg-black text-yellow-400 border-yellow-400 hover:bg-yellow-400 hover:text-black' : 'bg-[#1351b4] text-white border-[#1351b4] hover:bg-[#0c326f]'}`}>
+              Continuar
+            </button>
+
+            <div className={`border-t pt-6 ${a11y.highContrast ? 'border-yellow-400' : 'border-gray-200'}`}>
+              <p className={`font-bold mb-4 ${tSmall}`}>Outras opções de identificação:</p>
+              <div className="space-y-4">
+                <button className={`w-full flex items-center justify-between p-2 rounded transition-colors ${a11y.highContrast ? 'text-yellow-400 hover:bg-yellow-400/20' : 'text-green-700 hover:bg-green-50'}`}>
+                  <div className="flex items-center gap-2"><Landmark size={20} /><span className={`font-bold ${tBase}`}>Login com seu banco</span></div>
+                  <span className={`font-bold px-2 py-1 rounded-sm ${tSmall} ${a11y.highContrast ? 'bg-yellow-400 text-black' : 'bg-[#009b3a] text-white'}`}>SUA CONTA SERÁ PRATA</span>
+                </button>
+                <button className={`w-full flex items-center gap-2 p-2 rounded transition-colors ${a11y.highContrast ? 'text-yellow-400 hover:bg-yellow-400/20' : 'text-[#1351b4] hover:bg-blue-50'}`}>
+                  <Lock size={20} /><span className={`font-bold ${tBase}`}>Seu certificado digital</span>
+                </button>
+                <button className={`w-full flex items-center gap-2 p-2 rounded transition-colors ${a11y.highContrast ? 'text-yellow-400 hover:bg-yellow-400/20' : 'text-[#1351b4] hover:bg-blue-50'}`}>
+                  <Cloud size={20} /><span className={`font-bold ${tBase}`}>Seu certificado digital em nuvem</span>
+                </button>
+              </div>
+            </div>
+            
+            <div className="mt-10 text-center space-y-4">
+              <a href="#" className={`font-bold ${tSmall} flex items-center justify-center gap-2 hover:underline ${a11y.highContrast ? 'text-yellow-400' : 'text-[#1351b4]'}`}>
+                <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${a11y.highContrast ? 'bg-yellow-400 text-black' : 'bg-[#1351b4] text-white'}`}>?</div>
+                Está com dúvidas e precisa de ajuda?
+              </a>
+              <a href="#" className={`font-bold ${tSmall} block hover:underline ${a11y.highContrast ? 'text-yellow-400' : 'text-[#1351b4]'}`}>
+                Termo de Uso e Aviso de Privacidade
+              </a>
+            </div>
+          </div>
+        ) : (
+          <div className={`p-8 rounded-lg border-2 shadow-sm animate-fade-in ${a11y.highContrast ? 'bg-black border-yellow-400 text-yellow-400' : 'bg-white border-gray-200 text-gray-800'}`}>
+            <h2 className={`font-bold mb-6 ${tTitle}`}>Digite sua senha</h2>
+            
+            <p className={`font-bold mb-1 ${tSmall}`}>CPF</p>
+            <p className={`font-medium mb-6 ${tBase}`}>{cpf}</p>
+            
+            <label className={`font-bold block mb-2 ${tBase}`}>Senha</label>
+            <div className="relative mb-8">
+              <input 
+                type={showPassword ? "text" : "password"} value={senha} onChange={e => setSenha(e.target.value)} 
+                className={`w-full p-4 border-2 rounded-md outline-none font-bold pr-12 ${tBase} ${a11y.highContrast ? 'bg-black border-yellow-400 text-yellow-400 focus:ring-2 focus:ring-yellow-400' : 'bg-[#fff8d6] border-[#f2d01c] text-gray-800 focus:ring-2 focus:ring-yellow-400'}`} 
+                placeholder="Digite sua senha atual"
+              />
+              <button onClick={() => setShowPassword(!showPassword)} className={`absolute right-4 top-4 hover:opacity-70 ${a11y.highContrast ? 'text-yellow-400' : 'text-gray-700'}`}>
+                <Eye size={20 + (lvl*2)} />
+              </button>
+            </div>
+            
+            <button onClick={onLogin} className={`w-full font-bold py-4 rounded-full transition-colors mb-4 border-2 ${tBase} ${a11y.highContrast ? 'bg-black text-yellow-400 border-yellow-400 hover:bg-yellow-400 hover:text-black' : 'bg-[#1351b4] text-white border-[#1351b4] hover:bg-[#0c326f]'}`}>
+              Entrar
+            </button>
+            <button onClick={() => setStep(1)} className={`w-full font-bold py-4 rounded-full transition-colors mb-6 border-2 ${tBase} ${a11y.highContrast ? 'bg-black text-yellow-400 border-yellow-400 hover:bg-yellow-400/20' : 'bg-white text-[#1351b4] border-[#1351b4] hover:bg-blue-50'}`}>
+              Cancelar
+            </button>
+
+            <div className="text-center space-y-6">
+              <a href="#" className={`font-bold ${tSmall} block hover:underline ${a11y.highContrast ? 'text-yellow-400' : 'text-[#1351b4]'}`}>
+                Esqueci minha senha
+              </a>
+              <div className={`border-t pt-6 ${a11y.highContrast ? 'border-yellow-400' : 'border-gray-200'}`}>
+                <a href="#" className={`font-bold ${tSmall} block hover:underline ${a11y.highContrast ? 'text-yellow-400' : 'text-[#1351b4]'}`}>
+                  Ficou com dúvidas?
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
+
+// ==========================================
+// APLICATIVO INTERNO (MAPA, CARTEIRA, HISTÓRICO)
+// ==========================================
+function MainApp({ a11y, balance, setBalance, trips, setTrips, activeTab, setActiveTab, showToast }) {
+  
+  const lvl = a11y.textSizeLevel;
+  const tBase = ['text-sm', 'text-base', 'text-lg', 'text-xl'][lvl];
+  const tTitle = ['text-lg', 'text-xl', 'text-2xl', 'text-3xl'][lvl];
+  const cardBg = a11y.highContrast ? 'bg-black border-b-2 border-yellow-400' : 'bg-white border-b border-gray-200';
+  const navBg = a11y.highContrast ? 'bg-black border-t-2 border-yellow-400' : 'bg-white border-t border-gray-200';
+
+  return (
+    <>
+      {activeTab !== 'map' && (
+        <header className={`${cardBg} shadow-sm px-4 py-3 shrink-0 z-10`}>
+          <h1 className={`${tTitle} font-bold transition-all ${a11y.highContrast ? 'text-yellow-400' : 'text-[#1351b4]'}`}>Mobilidade Cidadã</h1>
+          <p className={`${tBase} opacity-80 transition-all`} aria-live="polite">Rede Integrada do Distrito Federal</p>
+        </header>
+      )}
+
+      <main className={`flex-1 overflow-y-auto relative ${activeTab === 'map' ? 'p-0' : 'p-4 max-w-md mx-auto w-full'}`}>
+        {activeTab === 'map' && <MapTab a11y={a11y} apiMockRealTimeData={apiMockRealTimeData} />}
+        {activeTab === 'wallet' && <WalletTab balance={balance} showToast={showToast} setBalance={setBalance} a11y={a11y} />}
+        {activeTab === 'history' && <HistoryTab trips={trips} setTrips={setTrips} showToast={showToast} setBalance={setBalance} balance={balance} a11y={a11y} />}
+        {activeTab === 'report' && <ReportTab trips={trips} showToast={showToast} a11y={a11y} />}
+      </main>
+
+      <nav className={`${navBg} flex justify-around p-2 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-20 shrink-0`}>
+        <TabButton icon={<MapIcon />} label="Mapa DF" isActive={activeTab === 'map'} onClick={() => setActiveTab('map')} a11y={a11y} />
+        <TabButton icon={<Wallet />} label="Carteira" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} a11y={a11y} />
+        <TabButton icon={<History />} label="Histórico" isActive={activeTab === 'history'} onClick={() => setActiveTab('history')} a11y={a11y} />
+        <TabButton icon={<ShieldAlert />} label="Denunciar" isActive={activeTab === 'report'} onClick={() => setActiveTab('report')} isDanger a11y={a11y} />
+      </nav>
+    </>
+  );
+}
+
+// --- MAP TAB COM ROTAS E FILTRO ---
+function MapTab({ a11y, apiMockRealTimeData }) {
+  const mapRef = useRef(null);
+  const leafletMapRef = useRef(null);
+  const vehiclesLayerRef = useRef(null);
+  const heatmapLayerRef = useRef(null);
+  const markersRef = useRef({});
+  
+  const [leafletLoaded, setLeafletLoaded] = useState(false);
+  const [searchLine, setSearchLine] = useState('');
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
+  
+  const [activeLayer, setActiveLayer] = useState('vehicles'); 
+  const [mapMode, setMapMode] = useState('explore'); 
+  const [routeInput, setRouteInput] = useState({ origin: '', dest: '' });
+  const [suggestedRoute, setSuggestedRoute] = useState(null);
+  const [activeRouteFilter, setActiveRouteFilter] = useState(null);
+  
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeField, setActiveField] = useState(null);
+
+  const lvl = a11y.textSizeLevel;
+  const tBase = ['text-sm', 'text-base', 'text-lg', 'text-xl'][lvl];
+  const tSmall = ['text-xs', 'text-sm', 'text-base', 'text-lg'][lvl];
+  const tMicro = ['text-[10px]', 'text-xs', 'text-sm', 'text-base'][lvl];
+  const tTitle = ['text-lg', 'text-xl', 'text-2xl', 'text-3xl'][lvl];
+  const tBig = ['text-2xl', 'text-3xl', 'text-4xl', 'text-5xl'][lvl];
+
+  const [vehicles, setVehicles] = useState(() => 
+    apiMockRealTimeData.map(v => {
+      const safeRoute = v.route || [[-15.7942, -47.8825]];
+      const safeWP = v.currentWP || 0;
+      return { ...v, route: safeRoute, currentWP: safeWP, lat: safeRoute[safeWP][0], lng: safeRoute[safeWP][1] };
+    })
+  );
+
+  const displayedVehicles = vehicles.filter(v => {
+    if (activeRouteFilter) return v.line === activeRouteFilter;
+    if (searchLine) return v.line.toLowerCase().includes(searchLine.toLowerCase()) || v.company.toLowerCase().includes(searchLine.toLowerCase());
+    return true;
+  });
+
+  useEffect(() => {
+    const handleVehicleSelect = (e) => {
+      const v = displayedVehicles.find(veh => veh.id === e.detail);
+      if (v) setSelectedVehicle(v);
+    };
+    window.addEventListener('vehicleSelect', handleVehicleSelect);
+    return () => window.removeEventListener('vehicleSelect', handleVehicleSelect);
+  }, [displayedVehicles]);
+
+  useEffect(() => {
+    if (!document.getElementById('leaflet-css')) {
+      const link = document.createElement('link'); link.id = 'leaflet-css'; link.rel = 'stylesheet'; link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(link);
+    }
+    if (!document.getElementById('leaflet-js')) {
+      const script = document.createElement('script'); script.id = 'leaflet-js'; script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; script.onload = () => setLeafletLoaded(true); document.head.appendChild(script);
+    } else {
+      setLeafletLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (leafletLoaded && mapRef.current && !leafletMapRef.current) {
+      const L = window.L;
+      leafletMapRef.current = L.map(mapRef.current, { zoomControl: false }).setView([-15.7942, -47.8825], 12);
+      
+      const tileUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+      L.tileLayer(tileUrl, { maxZoom: 19 }).addTo(leafletMapRef.current);
+      L.control.zoom({ position: 'bottomright' }).addTo(leafletMapRef.current);
+
+      vehiclesLayerRef.current = L.layerGroup().addTo(leafletMapRef.current);
+      heatmapLayerRef.current = L.layerGroup();
+
+      heatmapData.forEach(point => {
+        const baseRadius = 300 * Math.pow(2, point.level - 1); 
+        const innerRadius = baseRadius * 0.6;
+        const coreRadius = baseRadius * 0.3;
+        [
+          L.circle([point.lat, point.lng], { radius: baseRadius, color: 'transparent', fillColor: point.color, fillOpacity: 0.15 }),
+          L.circle([point.lat, point.lng], { radius: innerRadius, color: 'transparent', fillColor: point.color, fillOpacity: 0.3 }),
+          L.circle([point.lat, point.lng], { radius: coreRadius, color: 'transparent', fillColor: point.color, fillOpacity: 0.6 })
+        ].forEach(c => c.addTo(heatmapLayerRef.current));
+      });
+    }
+  }, [leafletLoaded]);
+
+  useEffect(() => {
+    if (!leafletLoaded || !leafletMapRef.current) return;
+    const map = leafletMapRef.current;
+    if (activeLayer === 'heatmap') {
+      if (map.hasLayer(vehiclesLayerRef.current)) map.removeLayer(vehiclesLayerRef.current);
+      if (!map.hasLayer(heatmapLayerRef.current)) map.addLayer(heatmapLayerRef.current);
+    } else {
+      if (map.hasLayer(heatmapLayerRef.current)) map.removeLayer(heatmapLayerRef.current);
+      if (!map.hasLayer(vehiclesLayerRef.current)) map.addLayer(vehiclesLayerRef.current);
+    }
+  }, [activeLayer, leafletLoaded]);
+
+  useEffect(() => {
+    if (!leafletLoaded) return;
+    const interval = setInterval(() => {
+      setVehicles(prev => prev.map(veh => {
+        let newLat = veh.lat, newLng = veh.lng, wp = veh.currentWP, fw = veh.forward;
+        if (!veh.route || !veh.route[wp]) return veh;
+        const targetLat = veh.route[wp][0], targetLng = veh.route[wp][1];
+        const dy = targetLat - veh.lat, dx = targetLng - veh.lng;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < veh.speed) {
+          newLat = targetLat; newLng = targetLng;
+          if (fw) { wp++; if (wp >= veh.route.length) { wp = veh.route.length - 2; fw = false; } } 
+          else { wp--; if (wp < 0) { wp = 1; fw = true; } }
+        } else {
+          newLat += (dy / dist) * veh.speed; newLng += (dx / dist) * veh.speed;
+        }
+        return { ...veh, lat: newLat, lng: newLng, currentWP: wp, forward: fw };
+      }));
+    }, 1500); 
+    return () => clearInterval(interval);
+  }, [leafletLoaded]);
+
+  useEffect(() => {
+    if (!leafletLoaded || !vehiclesLayerRef.current) return;
+    const L = window.L;
+    
+    const currentIds = new Set(displayedVehicles.map(v => v.id));
+    Object.keys(markersRef.current).forEach(id => {
+      if (!currentIds.has(id)) {
+        vehiclesLayerRef.current.removeLayer(markersRef.current[id]);
+        delete markersRef.current[id];
+      }
+    });
+
+    displayedVehicles.forEach(veh => {
+      const isMetro = veh.type === 'METRO';
+      const svgIcon = isMetro 
+        ? `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="16" x="4" y="4" rx="2"/><path d="M4 10h16"/><path d="M12 4v6"/><path d="M8 20v4"/><path d="M16 20v4"/></svg>`
+        : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>`;
+
+      const icon = L.divIcon({
+        className: 'custom-veh-marker',
+        html: `<div style="background-color: ${a11y.highContrast ? '#000' : veh.color}; width: 36px; height: 36px; border-radius: 50%; border: 3px solid ${a11y.highContrast ? '#facc15' : 'white'}; box-shadow: 0 2px 5px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; color: ${a11y.highContrast ? '#facc15' : 'white'}; font-weight: bold; cursor: pointer;">${svgIcon}</div>`,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18]
+      });
+
+      if (!markersRef.current[veh.id]) {
+        const marker = L.marker([veh.lat, veh.lng], { icon }).addTo(vehiclesLayerRef.current);
+        marker.on('click', () => { window.dispatchEvent(new CustomEvent('vehicleSelect', {detail: veh.id})) });
+        markersRef.current[veh.id] = marker;
+      } else {
+        markersRef.current[veh.id].setLatLng([veh.lat, veh.lng]);
+        markersRef.current[veh.id].setIcon(icon);
+      }
+    });
+  }, [leafletLoaded, displayedVehicles, a11y.highContrast]);
+
+  const handleAddressSelect = (addr) => {
+    setRouteInput(prev => ({ ...prev, [activeField]: addr }));
+    setShowSuggestions(false);
+  };
+
+  const handleRouteSearch = (e) => {
+    e.preventDefault();
+    if (!routeInput.origin || !routeInput.dest) return;
+    
+    setSuggestedRoute({
+      time: "45 min",
+      price: "R$ 5,50",
+      steps: [
+        { type: "walk", instruction: `Caminhe 400m partindo de ${routeInput.origin}` },
+        { type: "bus", instruction: "Aguarde o Ônibus 105.2 - W3 Sul / Norte", line: "105.2 - W3 Sul / Norte" },
+        { type: "metro", instruction: "Integração Estação Central - Metrô Linha Verde (Sem custo adicional)" },
+        { type: "walk", instruction: `Desembarque e caminhe até ${routeInput.dest}` }
+      ]
+    });
+    
+    setActiveRouteFilter('105.2 - W3 Sul / Norte');
+    setSelectedVehicle(null);
+  };
+
+  const resetMap = () => {
+    setMapMode('explore');
+    setSuggestedRoute(null);
+    setActiveRouteFilter(null);
+    setSearchLine('');
+  };
+
+  return (
+    <div className="w-full h-full relative flex flex-col" role="main">
+      
+      <div className={`absolute top-0 left-0 right-0 z-[400] shadow-md transition-colors ${a11y.highContrast ? 'bg-black border-b-2 border-yellow-400' : 'bg-white'}`}>
+        <div className="flex w-full">
+          <button onClick={resetMap} className={`flex-1 py-3 font-bold text-center border-b-4 transition-colors ${mapMode === 'explore' ? (a11y.highContrast ? 'border-yellow-400 text-yellow-400 bg-yellow-400/10' : 'border-[#1351b4] text-[#1351b4]') : (a11y.highContrast ? 'border-transparent text-yellow-400 hover:bg-yellow-400/10' : 'border-transparent text-gray-500 hover:bg-gray-50')}`}>
+            Explorar Mapa
+          </button>
+          <button onClick={() => { setMapMode('route'); setSelectedVehicle(null); setActiveLayer('vehicles'); }} className={`flex-1 py-3 font-bold text-center border-b-4 flex items-center justify-center gap-2 transition-colors ${mapMode === 'route' ? (a11y.highContrast ? 'border-yellow-400 text-yellow-400 bg-yellow-400/10' : 'border-[#1351b4] text-[#1351b4]') : (a11y.highContrast ? 'border-transparent text-yellow-400 hover:bg-yellow-400/10' : 'border-transparent text-gray-500 hover:bg-gray-50')}`}>
+            <Navigation size={18} /> Criar Rota
+          </button>
+        </div>
+
+        {mapMode === 'explore' && (
+          <div className="p-3 flex gap-2">
+            <div className="relative flex-1">
+              <input 
+                type="text" placeholder="Procurar Linha ou Destino..." aria-label="Procurar linha no mapa"
+                value={searchLine} onChange={(e) => setSearchLine(e.target.value)} disabled={activeLayer === 'heatmap'}
+                className={`w-full border-2 rounded-full py-2 pl-10 pr-4 focus:outline-none transition-all ${activeLayer === 'heatmap' ? 'opacity-50' : ''} ${tBase} ${a11y.highContrast ? 'bg-black text-yellow-400 border-yellow-400 placeholder-yellow-400' : 'bg-gray-50 border-gray-300 focus:border-[#1351b4]'}`}
+              />
+              <Search className={`absolute left-3 top-2.5 ${a11y.highContrast ? 'text-yellow-400' : 'text-gray-400'}`} size={18 + (lvl*2)} />
+            </div>
+            <button onClick={() => setActiveLayer(prev => prev === 'vehicles' ? 'heatmap' : 'vehicles')} className={`p-2 rounded-full border-2 transition-all outline-none ${activeLayer === 'heatmap' ? 'bg-[#d32f2f] text-white border-red-400 ring-4 ring-red-300' : 'bg-[#b71c1c] text-white border-[#8b0000]'}`} aria-label="Ver Mapa de Calor de Ocorrências">
+              <AlertCircle size={20 + (lvl*2)} />
+            </button>
+          </div>
+        )}
+
+        {mapMode === 'route' && (
+          <div className="p-4 space-y-3 relative">
+            <form onSubmit={handleRouteSearch} className="relative">
+              <div className={`absolute left-3.5 top-5 bottom-8 w-0.5 ${a11y.highContrast ? 'bg-yellow-400' : 'bg-gray-300'}`}></div>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full border-2 z-10 ${a11y.highContrast ? 'border-yellow-400 bg-black' : 'border-[#1351b4] bg-white'}`}></div>
+                  <input required type="text" placeholder="De onde você vai partir?" value={routeInput.origin} 
+                    onChange={e => { setRouteInput({...routeInput, origin: e.target.value}); setActiveField('origin'); setShowSuggestions(true); }}
+                    onFocus={() => { setActiveField('origin'); setShowSuggestions(true); }}
+                    className={`w-full border-2 rounded-lg p-2 outline-none ${tBase} ${a11y.highContrast ? 'bg-black text-yellow-400 border-yellow-400 placeholder-yellow-400' : 'bg-gray-50 border-gray-300 focus:border-[#1351b4]'}`} />
+                </div>
+                <div className="flex items-center gap-3">
+                  <MapPin size={16} className={`z-10 -ml-0.5 ${a11y.highContrast ? 'text-yellow-400' : 'text-red-500'}`} />
+                  <input required type="text" placeholder="Para onde você vai?" value={routeInput.dest} 
+                    onChange={e => { setRouteInput({...routeInput, dest: e.target.value}); setActiveField('dest'); setShowSuggestions(true); }}
+                    onFocus={() => { setActiveField('dest'); setShowSuggestions(true); }}
+                    className={`w-full border-2 rounded-lg p-2 outline-none ${tBase} ${a11y.highContrast ? 'bg-black text-yellow-400 border-yellow-400 placeholder-yellow-400' : 'bg-gray-50 border-gray-300 focus:border-[#1351b4]'}`} />
+                </div>
+              </div>
+              
+              {showSuggestions && activeField && (
+                <div className={`absolute left-8 right-0 mt-1 rounded-lg border shadow-xl z-50 max-h-40 overflow-y-auto ${a11y.highContrast ? 'bg-black border-yellow-400 text-yellow-400' : 'bg-white border-gray-200'}`}>
+                  {mockAddresses.filter(a => a.toLowerCase().includes(routeInput[activeField].toLowerCase())).map((addr, i) => (
+                    <div key={i} onClick={() => handleAddressSelect(addr)} className={`p-3 cursor-pointer border-b ${tSmall} ${a11y.highContrast ? 'border-yellow-400 hover:bg-yellow-400/20' : 'border-gray-100 hover:bg-blue-50'}`}>
+                      <MapPin size={14} className="inline mr-2 opacity-50" /> {addr}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button type="submit" className={`mt-4 w-full font-bold py-2 rounded-lg border-2 transition-colors ${tBase} ${a11y.highContrast ? 'bg-black text-yellow-400 border-yellow-400 hover:bg-yellow-400 hover:text-black' : 'bg-[#1351b4] text-white border-transparent'}`}>Encontrar Melhor Rota</button>
+            </form>
+
+            {suggestedRoute && (
+              <div className={`mt-4 p-4 rounded-xl border-2 ${a11y.highContrast ? 'bg-black border-yellow-400' : 'border-green-200 bg-green-50'}`}>
+                <div className="flex justify-between font-bold mb-3">
+                  <span className={`${tTitle} ${a11y.highContrast ? 'text-yellow-400' : ''}`}>Tempo Estimado: {suggestedRoute.time}</span>
+                  <span className={`${tBase} ${a11y.highContrast ? 'text-yellow-400' : 'text-green-700'}`}>{suggestedRoute.price}</span>
+                </div>
+                <div className={`space-y-3 relative before:absolute before:inset-0 before:ml-2 before:w-0.5 ${a11y.highContrast ? 'before:bg-yellow-400' : 'before:bg-gray-300'}`}>
+                  {suggestedRoute.steps.map((step, i) => (
+                    <div key={i} className="flex gap-3 items-start relative ml-5">
+                      <div className={`absolute -left-6 top-1 w-2.5 h-2.5 rounded-full ${step.type === 'walk' ? (a11y.highContrast ? 'bg-white' : 'bg-gray-400') : (a11y.highContrast ? 'bg-yellow-400' : 'bg-[#1351b4]')}`}></div>
+                      <div>
+                        <p className={`font-bold ${tBase} ${a11y.highContrast ? 'text-yellow-400' : 'text-gray-800'}`}>{step.instruction}</p>
+                        {step.type === 'bus' && <p className={`mt-1 inline-block px-2 py-1 rounded font-bold text-xs ${a11y.highContrast ? 'bg-yellow-400 text-black' : 'text-white bg-[#1351b4]'}`}>Filtrado no Mapa: {step.line}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 w-full relative z-0" style={{ backgroundColor: '#e5e5e5' }}>
+        {!leafletLoaded && (
+          <div className={`absolute inset-0 flex items-center justify-center flex-col gap-3 z-10 ${a11y.highContrast ? 'bg-black text-yellow-400' : 'bg-white/80 text-gray-500'}`}>
+            <div className={`w-8 h-8 border-4 border-t-transparent rounded-full animate-spin ${a11y.highContrast ? 'border-yellow-400' : 'border-[#1351b4]'}`}></div>
+            <p className={`font-bold ${tBase}`}>Carregando sistema de rotas...</p>
+          </div>
+        )}
+        <div ref={mapRef} className="w-full h-full"></div>
+      </div>
+
+      {activeLayer === 'heatmap' && (
+        <div className="absolute bottom-4 left-4 right-4 z-[400] animate-fade-in">
+          <div className={`p-4 rounded-2xl shadow-xl border-2 flex flex-col gap-3 ${a11y.highContrast ? 'bg-black border-yellow-400 text-yellow-400' : 'bg-white border-gray-100 text-gray-800'}`}>
+            <h3 className={`font-bold flex items-center gap-2 border-b pb-2 ${a11y.highContrast ? 'border-yellow-400' : 'border-gray-200'} ${tTitle}`}>
+              <AlertCircle size={20 + (lvl*2)} className="text-[#d32f2f]" /> Alertas de Ocorrência
+            </h3>
+            <div className="space-y-2 mt-2 max-h-32 overflow-y-auto">
+              {heatmapData.sort((a,b) => b.level - a.level).map((hotspot, idx) => (
+                <div key={idx} className={`flex items-center gap-3 p-2 rounded border ${a11y.highContrast ? 'border-yellow-400' : 'bg-gray-50 border-gray-100'}`}>
+                  <div className="w-4 h-4 rounded-full flex-shrink-0" style={{backgroundColor: hotspot.color}}></div>
+                  <span className={`font-bold flex-1 ${tSmall}`}>{hotspot.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeLayer === 'vehicles' && selectedVehicle && mapMode === 'explore' && (
+        <div className={`absolute bottom-0 left-0 right-0 z-[500] rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.2)] border-t-2 transition-transform transform translate-y-0 ${a11y.highContrast ? 'bg-black border-yellow-400 text-yellow-400' : 'bg-white border-gray-200 text-gray-800'}`}>
+          <div className="p-5 max-h-[50vh] overflow-y-auto">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <span className={`inline-block px-2 py-1 rounded font-bold mb-1 uppercase tracking-wider text-xs ${a11y.highContrast ? 'bg-yellow-400 text-black' : 'bg-blue-100 text-[#1351b4]'}`}>
+                  {selectedVehicle.company} • {selectedVehicle.type === 'ONIBUS' ? 'ÔNIBUS' : selectedVehicle.type}
+                </span>
+                <h2 className={`font-bold leading-tight ${tBig}`}>{selectedVehicle.line}</h2>
+                <p className={`font-medium ${tBase} ${a11y.highContrast ? 'text-yellow-600' : 'text-gray-500'}`}>
+                  Sentido: <strong className={a11y.highContrast ? 'text-yellow-400' : 'text-gray-900'}>{selectedVehicle.forward ? selectedVehicle.dest : selectedVehicle.stops[0]}</strong>
+                </p>
+              </div>
+              <button onClick={() => setSelectedVehicle(null)} className={`p-2 rounded-full shrink-0 ${a11y.highContrast ? 'hover:bg-yellow-400/20 text-yellow-400' : 'bg-gray-100'}`}><X size={20} /></button>
+            </div>
+            <div className="flex flex-wrap gap-2 mb-2">
+              <div className={`px-3 py-1.5 rounded-full font-bold border ${tSmall} ${a11y.highContrast ? 'border-yellow-400 bg-black text-yellow-400' : 'border-green-200 bg-green-50 text-green-700'}`}>
+                Tarifa: R$ {selectedVehicle.price.toFixed(2).replace('.', ',')}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- WALLET TAB ---
+function WalletTab({ balance, showToast, setBalance, a11y }) {
+  const lvl = a11y.textSizeLevel;
+  const tBase = ['text-sm', 'text-base', 'text-lg', 'text-xl'][lvl];
+  const tTitle = ['text-lg', 'text-xl', 'text-2xl', 'text-3xl'][lvl];
+  const tMega = ['text-4xl', 'text-5xl', 'text-6xl', 'text-7xl'][lvl];
+
+  const handleNfcTap = () => {
+    if (balance >= 5.50) { setBalance(prev => prev - 5.50); showToast("Aprovação NFC: R$ 5,50 debitados."); } 
+    else { showToast("Saldo insuficiente para embarque."); }
+  };
+  
+  const cardClasses = a11y.highContrast ? 'border-4 border-yellow-400 bg-black text-yellow-400' : 'bg-gradient-to-br from-[#1351b4] to-[#0c326f] text-white';
+  const btnClasses = a11y.highContrast ? 'border-2 border-yellow-400 text-yellow-400 bg-black hover:bg-yellow-400 hover:text-black' : 'border border-gray-300 text-gray-700 bg-white hover:bg-gray-50';
+
+  return (
+    <div className="space-y-6 animate-fade-in py-2">
+      <div className={`p-6 rounded-2xl shadow-lg relative overflow-hidden ${cardClasses}`}>
+        <p className={`font-medium flex items-center gap-2 ${tBase} ${a11y.highContrast ? '' : 'text-blue-100'}`}>Cartão BRB Mobilidade <CheckCircle2 size={16 + (lvl*2)} /></p>
+        <h2 className={`font-bold mt-2 tracking-tight ${tMega}`}>R$ {balance.toFixed(2).replace('.', ',')}</h2>
+        <div className="mt-8 flex justify-between items-end">
+          <div><p className="uppercase tracking-wider opacity-80 text-xs">Titular Integrado</p><p className={`font-medium ${tTitle}`}>JOÃO DA SILVA</p></div>
+          <Nfc size={36 + (lvl*4)} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <button onClick={() => { setBalance(b => b + 20); showToast("Recarga de R$ 20,00 concluída."); }} className={`py-4 rounded-xl font-bold flex flex-col items-center justify-center gap-2 shadow-sm transition-colors ${btnClasses}`}>
+          <CreditCard size={24 + (lvl*4)} /><span className={tBase}>Recarregar</span>
+        </button>
+        <button className={`py-4 rounded-xl font-bold flex flex-col items-center justify-center gap-2 shadow-sm transition-colors ${btnClasses}`}>
+          <Clock size={24 + (lvl*4)} /><span className={tBase}>Extrato</span>
+        </button>
+      </div>
+      <div className="pt-8 text-center">
+        <p className={`font-bold mb-1 ${tTitle}`}>Embarque Digital (NFC)</p>
+        <button onClick={handleNfcTap} className={`mx-auto mt-4 w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-lg animate-pulse active:scale-90 transition-transform relative border-4 ${a11y.highContrast ? 'bg-black text-yellow-400 border-yellow-400' : 'bg-[#1351b4] text-white border-blue-300'}`}>
+          <Nfc size={48 + (lvl*4)} className="mb-2 absolute" />
+          <div className={`w-full h-full rounded-full border-[10px] border-transparent animate-spin absolute ${a11y.highContrast ? 'border-t-yellow-400/30' : 'border-t-white/30'}`}></div>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// --- HISTORY TAB ---
+function HistoryTab({ trips, setTrips, showToast, setBalance, balance, a11y }) {
+  const [reviewingId, setReviewingId] = useState(null);
+  const [selectedTraits, setSelectedTraits] = useState([]);
+
+  const lvl = a11y.textSizeLevel;
+  const tBase = ['text-sm', 'text-base', 'text-lg', 'text-xl'][lvl];
+  const tSmall = ['text-xs', 'text-sm', 'text-base', 'text-lg'][lvl];
+  const tTitle = ['text-lg', 'text-xl', 'text-2xl', 'text-3xl'][lvl];
+  const tBig = ['text-3xl', 'text-4xl', 'text-5xl', 'text-6xl'][lvl];
+
+  const evaluationOptions = [
+    "Veículo acessível",
+    "Quantidade confortável de assentos",
+    "Cheio",
+    "Superlotação",
+    "Partes do veículo avariadas/quebradas"
+  ];
+
+  const handleToggleTrait = (trait) => {
+    setSelectedTraits(prev => 
+      prev.includes(trait) ? prev.filter(t => t !== trait) : [...prev, trait]
+    );
+  };
+
+  const handleReviewSubmit = (id) => {
+    if (selectedTraits.length === 0) {
+      showToast("Selecione ao menos uma característica do veículo.");
+      return;
+    }
+    setTrips(trips.map(t => t.id === id ? { ...t, reviewed: true } : t)); 
+    setBalance(balance + 0.15); 
+    setReviewingId(null); 
+    showToast("Avaliação Pública enviada! Bônus de R$ 0,15 recebido.");
+  };
+
+  return (
+    <div className="space-y-4 animate-fade-in py-2">
+      <h2 className={`font-bold pt-2 ${tTitle}`}>Viagens Recentes</h2>
+      {trips.map(trip => (
+        <div key={trip.id} className={`rounded-xl shadow-sm overflow-hidden border-2 ${a11y.highContrast ? 'bg-black border-yellow-400' : 'bg-white border-gray-200'}`}>
+          <div className={`p-4 border-b-2 ${a11y.highContrast ? 'bg-black border-yellow-400' : 'bg-gray-50 border-gray-200'}`}>
+            <div className="flex justify-between items-start">
+              <div>
+                <span className={`inline-block px-2 py-1 rounded-full font-bold mb-2 text-xs ${a11y.highContrast ? 'bg-yellow-400 text-black' : 'bg-blue-100 text-[#1351b4]'}`}>
+                  {trip.date}
+                </span>
+                {/* Destaque para Linha do Ônibus */}
+                <h3 className={`font-black leading-tight ${tBig} ${a11y.highContrast ? 'text-yellow-400' : 'text-[#1351b4]'}`}>
+                  {trip.line.split('-')[0].trim()}
+                </h3>
+                <p className={`font-bold mt-1 ${tBase} ${a11y.highContrast ? 'text-white' : 'text-gray-800'}`}>
+                  {trip.line.split('-')[1]?.trim() || trip.line}
+                </p>
+                <p className={`font-bold mt-2 inline-block px-2 py-1 rounded border-2 text-sm ${a11y.highContrast ? 'border-yellow-400 text-yellow-400 bg-black' : 'border-gray-300 bg-white text-gray-700'}`}>
+                  Placa: {trip.plate}
+                </p>
+              </div>
+              <div className="text-right">
+                <span className={`font-black ${tTitle} ${a11y.highContrast ? 'text-yellow-400' : 'text-green-700'}`}>
+                  R$ {trip.cost.toFixed(2).replace('.', ',')}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-4 space-y-3">
+            <div className={`flex items-center gap-2 opacity-70 ${tBase}`}>
+              <User size={18 + (lvl*2)} /><span>Motorista: <strong className="font-bold">{trip.driver}</strong></span>
+            </div>
+            
+            {!trip.reviewed ? (
+              <div className={`mt-4 pt-4 border-t-2 ${a11y.highContrast ? 'border-yellow-400' : 'border-gray-300'}`}>
+                {reviewingId === trip.id ? (
+                  <div className={`space-y-3 p-4 rounded-xl border-2 ${a11y.highContrast ? 'bg-black border-yellow-400' : 'bg-gray-50 border-gray-200'}`}>
+                    <label className={`font-bold block mb-2 ${tBase}`}>Como você avalia o veículo? (Múltipla escolha)</label>
+                    <div className="space-y-2 mb-3">
+                      {evaluationOptions.map(option => (
+                        <label key={option} className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${tBase} ${selectedTraits.includes(option) ? (a11y.highContrast ? 'border-yellow-400 bg-yellow-400/20 text-yellow-400' : 'border-[#1351b4] bg-blue-50 text-[#1351b4]') : (a11y.highContrast ? 'border-yellow-400 bg-black text-yellow-400' : 'border-gray-300 hover:bg-gray-100 text-gray-800')}`}>
+                          <input type="checkbox" className={`w-5 h-5 rounded ${a11y.highContrast ? 'accent-yellow-400' : 'accent-[#1351b4]'}`} checked={selectedTraits.includes(option)} onChange={() => handleToggleTrait(option)} />
+                          <span className="font-medium">{option}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <button onClick={() => handleReviewSubmit(trip.id)} className={`w-full font-bold py-3 rounded-lg border-2 transition-colors ${tBase} ${a11y.highContrast ? 'bg-black text-yellow-400 border-yellow-400 hover:bg-yellow-400 hover:text-black' : 'bg-[#009b3a] text-white border-[#007a2e] hover:bg-[#007a2e]'}`}>Enviar Relatório Público</button>
+                  </div>
+                ) : (
+                  <button onClick={() => { setReviewingId(trip.id); setSelectedTraits([]); }} className={`w-full font-bold py-3 rounded-lg flex items-center justify-center gap-2 border-2 transition-colors ${tBase} ${a11y.highContrast ? 'bg-black text-yellow-400 border-yellow-400 hover:bg-yellow-400 hover:text-black' : 'bg-blue-50 text-[#1351b4] border-[#1351b4] hover:bg-blue-100'}`}><Star size={20 + (lvl*2)} className={a11y.highContrast ? 'text-yellow-400' : 'text-[#fedf00] fill-[#fedf00]'} /> Avaliar e Receber R$ 0,15</button>
+                )}
+              </div>
+            ) : (
+              <div className={`mt-4 pt-3 border-t-2 font-bold flex items-center justify-center gap-2 p-3 rounded-lg border-2 ${tBase} ${a11y.highContrast ? 'bg-black border-yellow-400 text-yellow-400' : 'border-green-300 bg-green-50 text-[#009b3a]'}`}><CheckCircle2 size={20 + (lvl*2)} /> Viagem Avaliada (Bônus R$ 0,15)</div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// --- TAB DENÚNCIAS PADRONIZADAS SEM ÍCONES (GERADOR DE PDF PARA B.O.) ---
+const REPORT_CATEGORIES = [
+  { id: 'assedio', type: 'policia', label: 'Assédio ou Importunação Sexual' },
+  { id: 'furto', type: 'policia', label: 'Furto / Assalto a Mão Armada' },
+  { id: 'agressao', type: 'policia', label: 'Agressão Física ou Ameaça' },
+  { id: 'racismo', type: 'policia', label: 'Discriminação / Racismo / LGBTfobia' },
+  { id: 'vandalismo', type: 'policia', label: 'Vandalismo / Dano ao Patrimônio' },
+  { id: 'lotacao', type: 'semob', label: 'Superlotação Extrema' },
+  { id: 'atraso', type: 'semob', label: 'Atraso Excessivo ou Queima de Parada' },
+  { id: 'acessibilidade', type: 'semob', label: 'Negativa de Acessibilidade / Elevador Quebrado' },
+  { id: 'mecanica', type: 'semob', label: 'Avaria Mecânica / Falta de Ar Condicionado' },
+  { id: 'direcao', type: 'semob', label: 'Direção Perigosa / Alta Velocidade' },
+  { id: 'acidente', type: 'semob', label: 'Acidente de Trânsito' }
+];
+
+function ReportTab({ trips, showToast, a11y }) {
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [reportData, setReportData] = useState(null);
+
+  const lvl = a11y.textSizeLevel;
+  const tBase = ['text-sm', 'text-base', 'text-lg', 'text-xl'][lvl];
+  const tSmall = ['text-xs', 'text-sm', 'text-base', 'text-lg'][lvl];
+  const tTitle = ['text-lg', 'text-xl', 'text-2xl', 'text-3xl'][lvl];
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    const tripId = e.target.trip.value;
+    const selectedTrip = trips.find(t => t.id === tripId) || {};
+    const desc = e.target.description.value;
+    const anon = e.target.anon.checked;
+
+    const data = {
+      date: new Date().toLocaleString('pt-BR'),
+      category: selectedCategory.label,
+      tripDetails: tripId === 'estacao_metro' ? 'Estação de Metrô DF' : 
+                   tripId === 'estacao_brt' ? 'Terminal de BRT / Parada' : 
+                   `Linha: ${selectedTrip.line} | Placa: ${selectedTrip.plate} | Horário: ${selectedTrip.time}`,
+      description: desc,
+      author: anon ? 'Cidadão Anônimo' : 'João da Silva (CPF: ***.123.456-**)'
+    };
+
+    setTimeout(() => { 
+      setIsSubmitting(false); 
+      setReportData(data);
+      setShowPdfModal(true);
+      setSelectedCategory(null);
+    }, 1500);
+  };
+
+  const inputClasses = `w-full border-2 rounded-lg p-3 outline-none transition-colors ${tBase} ${a11y.highContrast ? 'bg-black border-yellow-400 text-yellow-400 focus:ring-yellow-400 placeholder-yellow-600' : 'bg-gray-50 border-gray-400 focus:border-[#1351b4]'}`;
+  const btnNeutral = a11y.highContrast ? 'bg-black border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black' : 'bg-white border-gray-300 text-gray-800 hover:bg-gray-100';
+
+  return (
+    <div className="space-y-4 animate-fade-in py-2">
+      
+      {!selectedCategory && !showPdfModal && (
+        <div className="space-y-6">
+          <div className={`p-4 rounded-lg border-2 ${a11y.highContrast ? 'bg-black border-yellow-400 text-yellow-400' : 'bg-white border-gray-300 text-gray-800'}`}>
+            <h2 className={`font-bold mb-1 ${tTitle}`}>Gerador de Relatório para B.O.</h2>
+            <p className={`${tBase} ${a11y.highContrast ? 'text-white' : 'opacity-80'}`}>Gere um documento PDF completo com os dados do veículo e GPS para anexar ao seu Boletim de Ocorrência oficial.</p>
+          </div>
+
+          <div>
+            <h3 className={`font-bold mb-3 border-b-2 pb-2 ${tTitle} ${a11y.highContrast ? 'border-yellow-400 text-yellow-400' : 'border-gray-800 text-gray-800'}`}>1. Segurança Pública (PMDF/PCDF)</h3>
+            <div className="space-y-2">
+              {REPORT_CATEGORIES.filter(c => c.type === 'policia').map(cat => (
+                <button key={cat.id} onClick={() => setSelectedCategory(cat)} className={`w-full text-left p-4 rounded border-2 font-bold transition-all active:scale-[0.98] ${btnNeutral}`}>
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className={`font-bold mb-3 border-b-2 pb-2 ${tTitle} ${a11y.highContrast ? 'border-yellow-400 text-yellow-400' : 'border-gray-800 text-gray-800'}`}>2. Fiscalização de Trânsito (Semob-DF)</h3>
+            <div className="space-y-2">
+              {REPORT_CATEGORIES.filter(c => c.type === 'semob').map(cat => (
+                <button key={cat.id} onClick={() => setSelectedCategory(cat)} className={`w-full text-left p-4 rounded border-2 font-bold transition-all active:scale-[0.98] ${btnNeutral}`}>
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedCategory && !showPdfModal && (
+        <div className="space-y-4">
+          <button onClick={() => setSelectedCategory(null)} className={`flex items-center gap-2 font-bold px-3 py-2 rounded border-2 transition-colors ${tBase} ${btnNeutral}`}>
+            <ArrowLeft size={18 + (lvl*2)} /> Voltar às Categorias
+          </button>
+
+          <form onSubmit={handleSubmit} className={`p-5 rounded-lg border-2 ${a11y.highContrast ? 'bg-black border-yellow-400' : 'bg-white border-gray-300'}`}>
+            
+            <div className={`p-4 rounded mb-6 border-l-4 flex items-center gap-3 ${a11y.highContrast ? 'bg-black border-yellow-400 text-yellow-400' : 'bg-gray-100 border-[#1351b4] text-gray-800'}`}>
+              <div>
+                <p className="uppercase tracking-wider font-bold opacity-70 text-xs">Classificação do Fato</p>
+                <h2 className={`font-bold mt-1 ${tTitle}`}>{selectedCategory.label}</h2>
+              </div>
+            </div>
+
+            <div className="mb-5">
+              <label className={`block font-bold mb-1.5 ${tBase} ${a11y.highContrast ? 'text-yellow-400' : 'text-gray-800'}`}>Vincular Viagem (Coleta Automática de GPS/Placa) *</label>
+              <select name="trip" required className={inputClasses}>
+                <option value="">Selecione o momento da ocorrência...</option>
+                {trips.map(t => <option key={t.id} value={t.id}>{t.date} - {t.line}</option>)}
+                <option value="estacao_metro">Estação de Metrô DF (Plataforma ou Interior do Trem)</option>
+                <option value="estacao_brt">Terminal de BRT ou Parada de Ônibus</option>
+              </select>
+            </div>
+
+            <div className="mb-5">
+              <label className={`block font-bold mb-1.5 ${tBase} ${a11y.highContrast ? 'text-yellow-400' : 'text-gray-800'}`}>Declaração Detalhada *</label>
+              <textarea name="description" required rows="5" className={`${inputClasses} resize-none`} placeholder="Descreva os fatos ocorridos com a maior precisão possível para anexar ao seu Boletim de Ocorrência..."></textarea>
+            </div>
+
+            <label className={`flex items-center gap-3 p-4 rounded border-2 cursor-pointer transition-colors ${tBase} ${a11y.highContrast ? 'bg-black border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black' : 'bg-gray-50 border-gray-300 hover:bg-gray-100 text-gray-800'}`}>
+              <input type="checkbox" name="anon" className="w-5 h-5 rounded" aria-label="Relato Sigiloso" />
+              <span className="font-bold">Desejo que a minha identidade seja preservada (Denúncia Anônima)</span>
+            </label>
+
+            <button type="submit" disabled={isSubmitting} className={`w-full font-bold py-4 rounded border-2 mt-6 flex items-center justify-center transition-colors ${tTitle} ${a11y.highContrast ? 'bg-black text-yellow-400 border-yellow-400 hover:bg-yellow-400 hover:text-black' : 'bg-[#1351b4] text-white border-[#0c326f] hover:bg-[#0c326f]'}`}>
+              {isSubmitting ? 'Gerando Relatório...' : 'Gerar PDF para Boletim de Ocorrência'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* MODAL DE PDF GERADO */}
+      {showPdfModal && reportData && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 p-4 animate-fade-in">
+          <div className={`w-full max-w-md rounded-xl border-2 p-6 relative flex flex-col max-h-[90vh] ${a11y.highContrast ? 'bg-black border-yellow-400 text-yellow-400' : 'bg-white text-gray-800 border-gray-300'}`}>
+            <button onClick={() => setShowPdfModal(false)} className={`absolute top-4 right-4 p-2 rounded-full ${a11y.highContrast ? 'hover:bg-yellow-400/20 text-yellow-400' : 'hover:bg-gray-100 text-gray-600'}`}>
+              <X size={24} />
+            </button>
+            
+            <h2 className={`font-bold text-center mb-2 ${tTitle} ${a11y.highContrast ? 'text-yellow-400' : 'text-[#1351b4]'}`}>Relatório Gerado</h2>
+            <p className={`text-sm mb-6 text-center ${a11y.highContrast ? 'text-white' : 'opacity-80'}`}>Este documento é válido como anexo para o Boletim de Ocorrência na Polícia Civil (PCDF) ou PMDF.</p>
+            
+            <div className="overflow-y-auto flex-1 mb-6">
+              <div id="printable-report" className="border-2 p-5 rounded text-sm space-y-4 bg-white text-black border-gray-300">
+                <div className="border-b-2 border-black pb-3 mb-3 text-center">
+                  <h3 className="font-black text-lg">RELATÓRIO DE INCIDENTE - MOBILIDADE DF</h3>
+                  <p className="text-xs mt-1">Gerado em: {reportData.date}</p>
+                </div>
+                <p><strong className="font-bold">Categoria:</strong> {reportData.category}</p>
+                <p><strong className="font-bold">Local/Veículo:</strong> {reportData.tripDetails}</p>
+                <p><strong className="font-bold">Relator:</strong> {reportData.author}</p>
+                <div className="mt-4">
+                  <strong className="font-bold">Descrição dos Fatos:</strong>
+                  <p className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded min-h-[100px] whitespace-pre-wrap">{reportData.description}</p>
+                </div>
+                <p className="text-[10px] text-center mt-8 pt-4 border-t border-gray-300 opacity-60">Documento gerado pelo sistema Gov.br Mobilidade Cidadã DF. Autenticidade verificável digitalmente.</p>
+              </div>
+            </div>
+
+            <button onClick={() => window.print()} className={`w-full font-bold py-4 rounded-lg flex items-center justify-center gap-3 border-2 transition-colors ${tTitle} ${a11y.highContrast ? 'bg-black text-yellow-400 border-yellow-400 hover:bg-yellow-400 hover:text-black' : 'bg-[#1351b4] text-white border-[#0c326f] hover:bg-[#0c326f]'}`}>
+              <Printer size={24} /> Salvar PDF / Imprimir
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TabButton({ icon, label, isActive, onClick, isDanger, a11y }) {
+  const lvl = a11y.textSizeLevel;
+  const tMicro = ['text-[10px]', 'text-xs', 'text-sm', 'text-base'][lvl];
+
+  let btnClass = isActive ? (a11y.highContrast ? 'text-black' : (isDanger ? 'text-gray-800 font-black' : 'text-[#1351b4]')) : (a11y.highContrast ? 'text-yellow-400' : 'text-gray-500');
+  let bgClass = isActive ? (a11y.highContrast ? 'bg-yellow-400 border border-yellow-400' : (isDanger ? 'bg-gray-200' : 'bg-blue-50')) : (a11y.highContrast ? 'bg-black hover:bg-yellow-400/20 border border-transparent' : 'hover:bg-gray-100');
+
+  return (
+    <button onClick={onClick} className={`flex flex-col items-center justify-center w-full py-1 ${btnClass} transition-colors outline-none`}>
+      <div className={`mb-1 p-2 rounded-xl transition-all duration-300 ${bgClass} ${isActive ? 'scale-110' : ''}`}>
+        {React.cloneElement(icon, { size: 24 + (lvl*4) })}
+      </div>
+      <span className={`font-medium ${isActive ? 'font-bold' : ''} ${tMicro}`}>{label}</span>
+    </button>
+  );
+}
